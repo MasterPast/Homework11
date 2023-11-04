@@ -2,8 +2,11 @@ import re
 from sys import exit
 from collections import deque
 from collections import UserDict
+from datetime import date, datetime, timedelta
+
 
 class Field:
+
     def __init__(self, value):
         self.value = value
 
@@ -11,22 +14,23 @@ class Field:
         return str(self.value)
 
 
-class Name(Field):
-    ...
+class Birthday(Field):
 
+    def __init__(self, value):
 
-class Phone(Field):
-    def __init__(self, value):  # регуляр телефона 10
-      
-        # '^(?:[( )-]*\d){10}[()-]*$' # UA-10
-        sovp = re.findall('^(\d){10}$', value)
+        self.value = value
+        self.today = datetime.today().date()
+
+    @property
+    def value(self):
+        return self.__value
+
+    @value.setter
+    def value(self, new_value):
+
+        sovp = re.findall('^(\d){4}-(\d){2}-(\d){2}$', new_value)
         if sovp != []:
-            while not sovp[0].isdigit():
-                check_dig = sovp[0]
-                for char in check_dig:
-                    if not char.isdigit():
-                        sovp[0] = sovp[0].replace(char, '')
-            self.value = value
+            self.__value = datetime.strptime(new_value, '%Y-%m-%d')
         else:
             raise ValueError
 
@@ -34,14 +38,63 @@ class Phone(Field):
         return self.value
 
 
-class Birthday(Field):
+class Name(Field):
+    ...
+
+
+class Phone(Field):
+
     def __init__(self, value):
-        ...
+        self.value = value
+
+    @property
+    def value(self):
+        return self.__value
+
+    @value.setter
+    def value(self, new_value):
+
+        # '^(?:[( )-]*\d){10}[()-]*$' # UA-10
+        sovp = re.findall('^(\d){10}$', new_value)
+        if sovp != []:
+            while not sovp[0].isdigit():
+                check_dig = sovp[0]
+                for char in check_dig:
+                    if not char.isdigit():
+                        sovp[0] = sovp[0].replace(char, '')
+            self.__value = new_value
+        else:
+            raise ValueError
+
+    def __str__(self):
+        return self.value
+
+
+class Iterable:
+    MAX_VALUE = 3
+
+    def __init__(self):
+        self.current_value = 0
+
+    def __next__(self):
+
+        if self.current_value < self.MAX_VALUE:
+            self.current_value += 1
+            return self.current_value
+        raise StopIteration
+
+
+class Cust_iter:
+
+    def __iter__(self):
+        return Iterable()
 
 
 class Record:
+    Name.count += 1
+
     def __init__(self, name):
-    
+
         self.name = Name(name)
         self.phones = []
         self.birthday = ''
@@ -49,8 +102,30 @@ class Record:
     def add_phone(self, phone):
         self.phones.append(Phone(phone))
 
+    def add_birthday(self, birthday):
+        self.birthday = (Birthday(birthday))
+
+    def days_to_birthday(self):
+
+        if self.birthday:
+            today_date = datetime(
+                year=self.birthday.value.year, month=today.month, day=today.day)
+            if today_date.date() < self.birthday.value.date():
+                a = str((self.birthday.value.date() -
+                        today_date.date()).days) + ' days...'
+            elif today_date.date() > self.birthday.value.date():
+                today_date = datetime(
+                    year=self.birthday.value.year-1, month=today.month, day=today.day)
+                a = str((self.birthday.value.date() -
+                        today_date.date()).days) + ' days...'
+            else:
+                a = 'TODAY is Birthday!'
+            return a
+        else:
+            return ''
+
     def edit_phone(self, old, new):
-    
+
         edit_phone_result = False
         for ph in self.phones:
             if str(ph) == str(new):
@@ -71,6 +146,7 @@ class Record:
                 find_phone_result = True
                 return ph
         if find_phone_result == False:
+
             return None
 
     def remove_phone(self, phone):
@@ -80,26 +156,44 @@ class Record:
                 self.phones.pop(self.phones.index(ph))
 
     def __str__(self):
-        return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}"
+
+        res_str = ' {a1:{width}}'.format(width=20, a1=self.name.value)
+        res_str += '{a2:{width}}'.format(width=30,
+                                         a2='; '.join(str(p.value) for p in self.phones))
+        res_str += '{a3:{width}}'.format(width=11, a3='')
+        res_str += '{a4}'.format(a4=(self.birthday.value.date()
+                                 if self.birthday else self.birthday))
+        res_str += '{a5:{width}}'.format(width=10, a5='')
+        res_str += '{a6}'.format(a6=(self.days_to_birthday()))
+
+        return res_str
 
 
 class AddressBook(UserDict):
-    
+
     def add_record(self, record):
-        self[record.name.value] = record 
+        self[record.name.value] = record
 
     def find(self, name):
 
         for nam, record in self.data.items():
             if nam == name:
                 return record
-            
+
+    def find_phone_in_book(self, phone):
+
+        for nam, record in self.data.items():
+            print(nam, record)
+            finded_phone = record.find_phone(phone)
+            if finded_phone:
+                return record
+        if not finded_phone:
+            return None
+
     def delete(self, name):
 
         if name in self.data:
-            print('Yep')
             self.data.pop(name)
-
 
 
 def input_error(fn):
@@ -123,21 +217,58 @@ def input_error(fn):
 @input_error
 def add(cmnd):
 
-    voc_contacts = {}
-    voc_contacts['name'] = cmnd[0]
-    voc_contacts['phone'] = cmnd[1]
-    list_voc_contacts.append(voc_contacts)
-    msg = f'\nIt was added: {voc_contacts["name"]} with phone number: {voc_contacts["phone"]} in your contacts.'
+    if cmnd[0] not in list_voc_contacts:
+        voc_contact = Record(cmnd[0])
+        voc_contact.add_phone(cmnd[1])
+        list_voc_contacts.add_record(voc_contact)
+    else:
+        voc_contact = list_voc_contacts.find(cmnd[0])
+        voc_contact.add_phone(cmnd[1])
+    msg = f'\nIt was added for: {voc_contact.name} phone number: {cmnd[1]} in your contact`s book.'
+
+    return msg
+
+
+@input_error
+def birthday(cmnd):
+
+    if cmnd[0] not in list_voc_contacts:
+        voc_contact = Record(cmnd[0])
+        voc_contact.add_birthday(cmnd[1])
+        list_voc_contacts.add_record(voc_contact)
+    else:
+        voc_contact = list_voc_contacts.find(cmnd[0])
+        voc_contact.add_birthday(cmnd[1])
+    msg = f'\nIt was added for: {voc_contact.name} bithday: {cmnd[1]} in your contact`s book.'
 
     return msg
 
 
 @input_error
 def change(cmnd):
-    for voc in filter(lambda voc: voc['name'] == cmnd[0], list_voc_contacts):
 
-        voc.update([('phone', cmnd[1])])
-        msg = f'\nIt was changed the phone number of: {voc["name"]} on: {voc["phone"]}.'
+    voc_contact = list_voc_contacts.find(cmnd[0])
+    voc_contact.edit_phone(cmnd[1], cmnd[2])
+    msg = f'\nIt was changed the phone number of: {voc_contact.name} from {cmnd[1]} on: {cmnd[2]}.'
+
+    return msg
+
+
+@input_error
+def contact(cmnd):
+
+    voc_contact = list_voc_contacts.find(cmnd[0])
+    msg = f'\nI found this: {voc_contact} in my phonebook.'
+
+    return msg
+
+
+@input_error
+def delete(cmnd):
+
+    voc_contact = list_voc_contacts.find(cmnd[0])
+    list_voc_contacts.delete(cmnd[0])
+    msg = f'\nDeleting this contact: {voc_contact} in my phonebook.'
 
     return msg
 
@@ -152,7 +283,7 @@ def help(cmnd):
 
     msg = '\nHelp for you:\n\n'
     for d1 in voc_help.items():
-        msg += d1[1]
+        msg += d1[0] + d1[1]
 
     return msg
 
@@ -166,8 +297,18 @@ def hello(cmnd):
 @input_error
 def phone(cmnd):
 
-    for voc in filter(lambda voc: voc['name'] == cmnd[0], list_voc_contacts):
-        msg = f'\nFor contact: {voc.get("name")} I found this phone number: {voc["phone"]}.'
+    voc_contact = list_voc_contacts.find_phone_in_book(cmnd[0])
+    msg = f'\nI found this: {voc_contact} in my phonebook.'
+
+    return msg
+
+
+@input_error
+def remove(cmnd):
+
+    voc_contact = list_voc_contacts.find_phone_in_book(cmnd[0])
+    voc_contact.remove_phone(cmnd[0])
+    msg = f'\nThis phone: {cmnd[0]} removed from my phonebook.'
 
     return msg
 
@@ -175,13 +316,17 @@ def phone(cmnd):
 @input_error
 def show_all(cmnd):
 
-    msg = '\nI found next information in your contacts:\n'
-    msg += (('-' * 46) + '\n')
-    for contacts in list_voc_contacts:
-        cont_string = '| {a1:{align}{width}} | {a2:{width}}|\n'.format(
-            a1=contacts['name'], a2=contacts['phone'], align='>', width=20)
-        msg += cont_string
-    msg += (('-' * 46) + '\n')
+    count = 0
+    msg = 'I found next information in your contacts:\n'
+    msg += (('-' * 100) + '\n')
+    msg += (('-') + ('Name') + ('-')*18 + ('Phones') + ('-')*34 +
+            ('Birthday') + ('-')*13 + ('Remain') + '-'*10 + '\n')
+    msg += (('-' * 100) + '\n')
+
+    for name, record in list_voc_contacts.data.items():
+        msg += str(record) + '\n'
+
+    msg += (('-' * 100) + '\n')
 
     return msg
 
@@ -189,7 +334,6 @@ def show_all(cmnd):
 def talking(cmnd):
 
     for pair in voc_cmnd:
-
         patt = re.compile('(?i)' + pair + ' ')
         s = patt.match(cmnd + ' ')
         if s != None:
@@ -208,82 +352,92 @@ def talking(cmnd):
     return voc_cmnd[voc_func], cmnd
 
 
+def pr_big_msg(msg):
+
+    count = 0
+    msg1 = []
+    c = Cust_iter()
+
+    with open('qqq.txt', 'w') as wr:
+        wr.write(msg)
+    with open('qqq.txt', 'r') as rr:
+        count = 0
+        x = 0
+        while count-6 < len(list_voc_contacts):
+            msg1.append(rr.readline())
+            count += 1
+    count = 0
+    while count < len(list_voc_contacts) + 4:
+        for _ in c:
+            if _+count <= len(list_voc_contacts)+4:
+                print(msg1[_+count], end='')
+            else:
+                print('', end='')
+        pause = input(' Please, press ENTER to continue...')
+        count += _
+
+
 def unknown(cmnd):
 
     msg = '\nPlease, repeat... Don`t understand you.((( You can use HELP command.'
     return msg
 
 
+today = datetime.today().date()
 input_command = ''
-list_voc_contacts = []
+list_voc_contacts = AddressBook()
+
 voc_cmnd = {
     'add': add,
+    'birthday': birthday,
     'change': change,
     'close': exit_bot,
+    'contact': contact,
+    'delete': delete,
     'exit': exit_bot,
     'good bye': exit_bot,
     'hello': hello,
     'help': help,
     'phone': phone,
+    'remove': remove,
     'show all': show_all,
     'unknown': unknown
 }
 
-voc_help = {'add': 'add contact phone : Add contact and phone number in phonebook.\n',
-            'change': 'change contact phone : Change contact`s phone number on new in phonebook.\n',
-            'close': 'close : Close the bot.\n',
-            'exit': 'exit : Close the bot.\n',
-            'good bye': 'good bye : Close the bot.\n',
-            'hello': 'hello : Greeting you))).\n',
-            'help': 'help : Display this screen with commands and parameters.\n',
-            'phone': 'phone contact: Display the contact`s phone.\n',
-            'show all': 'show all : Display your phonebook.'
+voc_help = {'add': ' : add contact phone : Add contact and phone number in phonebook.\n',
+            'birthday': ' birthday contact YYYY-MM-DD : Add contact`s birtday in format YYYY-MM-DD.',
+            'change': ': change contact phone_old Phone_new : Change contact`s phone number on new in phonebook.\n',
+            'close': ' : close : Close the bot.\n',
+            'contact': ' : contact name : Display the contact`s phone.\n',
+            'delete': ' : delete contact : Delete contact from phonebook.\n',
+            'exit': ' : exit : Close the bot.\n',
+            'good bye': ' : good bye : Close the bot.\n',
+            'hello': ' : hello : Greeting you))).\n',
+            'help': ' : help : Display this screen with commands and parameters.\n',
+            'phone': ' : phone number : Display the contact`s name phone owner.\n',
+            'remove': ' : remove phone : Remove the phone from phonebook.',
+            'show all': ' : show all : Display your phonebook.'
             }
 
 
 def main():
-    
-    # # Створення нової адресної книги
-    # book = AddressBook()
-
-    # # Створення запису для John
-    # john_record = Record("John")
-    # john_record.add_phone("1234567890")
-    # john_record.add_phone("5555555555")
-
-    # # Додавання запису John до адресної книги
-    # book.add_record(john_record)
-
-    # # Створення та додавання нового запису для Jane
-    # jane_record = Record("Jane")
-    # jane_record.add_phone("9876543210")
-    # book.add_record(jane_record)
-
-    # # Виведення всіх записів у книзі
-    # for name, record in book.data.items():
-    #     print(record)
-
-    # # Знаходження та редагування телефону для John
-    # john = book.find("John")
-    # john.edit_phone("1234567890", "1112223333")
-
-    # print(john)  # Виведення: Contact name: John, phones: 1112223333; 5555555555
-
-    # # Пошук конкретного телефону у записі John
-    # found_phone = john.find_phone("5555555555")
-    # print(f"{john.name}: {found_phone}")  # Виведення: 5555555555
-
-    # # Видалення запису Jane
-    # book.delete("Jane")
+    a = 0
     while True:
-        input_command = input('\nWhat can I do for you? >>> ')
+        if a < 15:
+            input_command = f'add sam{a} 1111111111'
+            a += 1
+        else:
+            input_command = input('\nWhat can I do for you? >>> ')
         res, cmnd = talking(input_command)
         msg = res(cmnd)
-        print(msg)
+        if len(msg) > 500:
+            pr_big_msg(msg)
+        else:
+            print(msg)
+        print('yep')
         if msg == '\nGood bye! Have a nice day!':
             exit()
 
 
 if __name__ == '__main__':
     main()
-

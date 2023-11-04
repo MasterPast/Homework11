@@ -71,7 +71,7 @@ class Phone(Field):
 
 
 class Iterable:
-    MAX_VALUE = 3
+    MAX_VALUE = 5
 
     def __init__(self):
         self.current_value = 0
@@ -91,8 +91,7 @@ class Cust_iter:
 
 
 class Record:
-    Name.count += 1
-
+    
     def __init__(self, name):
 
         self.name = Name(name)
@@ -423,18 +422,25 @@ voc_help = {'add': ' : add contact phone : Add contact and phone number in phone
 def main():
     a = 0
     while True:
-        if a < 15:
-            input_command = f'add sam{a} 1111111111'
+        if a < 5:
+            input_command = f'add Sam{a} 1111111111'
+            a += 1
+        elif a < 10:
+            input_command = f'birthday Betty{a} 1982-05-18'
+            a += 1
+        elif a < 15:
+            input_command = f'add John{a} 3333333333'
             a += 1
         else:
             input_command = input('\nWhat can I do for you? >>> ')
         res, cmnd = talking(input_command)
         msg = res(cmnd)
+    
         if len(msg) > 500:
             pr_big_msg(msg)
         else:
             print(msg)
-        print('yep')
+    
         if msg == '\nGood bye! Have a nice day!':
             exit()
 
